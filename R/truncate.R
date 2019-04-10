@@ -9,7 +9,7 @@ truncate_address <- function(x, level = "city") {
       purrr::pluck(1)
   } else if (rlang::is_true(is_include_level_char(x))) {
     stringr::str_split(x,
-                       pattern = "(?<=[[:print:]]市市|[[:print:]]町町)", n = 2) %>% 
+                       pattern = "(?<=[[:print:]]市市|[[:print:]]市町|[[:print:]]町町)", n = 2) %>% 
       purrr::pluck(1) %>% 
       purrr::pluck(1)
   } else {
