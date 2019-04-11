@@ -5,5 +5,5 @@ is_ward <- function(x) {
 
 is_include_level_char <- function(x) {
   stringr::str_detect(x, 
-                      ".+郡.+市町|市市|市町|町町")
+                      ".+郡.+市町|市市|市町|町町|郡村")
 }
