@@ -16,7 +16,7 @@ truncate_address <- function(x, level = "city") {
       purrr::pluck(1)
     else
       stringr::str_split(x,
-                         pattern = "(?<=尾道市|南九州市知覧町郡|薩摩川内市|安来市|木更津市|[[:print:]]市市|[[:print:]]市町|[[:print:]]町市|[[:print:]]町町|[[:print:]]郡村)", n = 2) %>% 
+                         pattern = "(?<=鹿児島市|尾道市|南九州市|薩摩川内市|安来市|木更津市|[[:print:]]市市|[[:print:]]市町|[[:print:]]町市|[[:print:]]町町|[[:print:]]郡村)", n = 2) %>% 
       purrr::pluck(1) %>% 
       purrr::pluck(1)
   } else {
