@@ -8,7 +8,7 @@ modified_address  <- function(city, adds, target_city, fix_adds, replace = NULL)
     adds)  
 }
 
-separate_address_cols <- function(df, col, into) {
+separate_address_cols <- function(df, col = "address", into = c("prefecture", "address")) {
   df %>% 
     tidyr::separate(col = col,
                     into = into,
