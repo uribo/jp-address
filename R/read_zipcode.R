@@ -27,3 +27,15 @@ df_type_class <- data.frame(
                "区画整理", "郵便区調整等", "訂正", "廃止"),
   stringsAsFactors = FALSE
 )
+
+zipcode_spacer <- function(x, remove = FALSE) {
+  
+  if (rlang::is_false(remove)) {
+    paste0(
+      stringr::str_sub(x, 1, 3),
+      "-",
+      stringr::str_sub(x, 4, 7))
+  } else {
+    stringr::str_remove_all(x, "-")
+  }
+}
