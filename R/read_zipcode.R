@@ -1,3 +1,11 @@
+is_zip <- function(x) {
+  # 3、5桁はとりあえず無視
+  checked <- stringr::str_detect(x, "^([0-9]{3}-[0-9]{4}|[0-9]{3}[0-9]{4})$")
+  if (rlang::is_false(checked))
+    rlang::inform("7桁の数値ではありません")
+  checked
+}
+
 # type... oogaki, kogaki
 read_zipcode <- function(path, type = c("kogaki")) {
   
@@ -29,13 +37,15 @@ df_type_class <- data.frame(
 )
 
 zipcode_spacer <- function(x, remove = FALSE) {
-  
-  if (rlang::is_false(remove)) {
-    paste0(
-      stringr::str_sub(x, 1, 3),
-      "-",
-      stringr::str_sub(x, 4, 7))
-  } else {
-    stringr::str_remove_all(x, "-")
-  }
+  if (rlang::is_true(is_zip(x)))
+    if (rlang::is_false(remove)) {
+      paste0(
+        stringr::str_sub(x, 1, 3),
+        "-",
+        stringr::str_sub(x, 4, 7))
+    } else {
+      stringr::str_remove_all(x, "-")
+    }
+  else
+    NA_character_
 }
