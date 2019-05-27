@@ -37,15 +37,15 @@ df_type_class <- data.frame(
 )
 
 zipcode_spacer <- function(x, remove = FALSE) {
-  if (rlang::is_true(is_zip(x)))
-    if (rlang::is_false(remove)) {
-      paste0(
-        stringr::str_sub(x, 1, 3),
-        "-",
-        stringr::str_sub(x, 4, 7))
-    } else {
-      stringr::str_remove_all(x, "-")
-    }
-  else
-    NA_character_
+  purrr::map_chr(x,
+                 ~ if (rlang::is_true(is_zip(.x)))
+                   if (rlang::is_false(remove)) {
+                     paste0(stringr::str_sub(.x, 1, 3),
+                            "-",
+                            stringr::str_sub(.x, 4, 7))
+                   } else {
+                     stringr::str_remove_all(.x, "-")
+                   }
+                 else
+                   NA_character_)
 }
