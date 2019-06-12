@@ -21,3 +21,22 @@ convert_e <- function(x, small = TRUE) {
     stringr::str_replace_all(x, pattern = "\u30a7", replacement = "\u30a8")
   
 }
+
+convert_kanji <- function(x, jyoyo = TRUE) {
+  
+  t_s <- "Traditional-Simplified"
+  s_t <- "Simplified-Traditional"
+  
+  if (rlang::is_true(jyoyo)) {
+    stringr::str_replace_all(x, 
+                             "\u5f4c", 
+                             stringi::stri_trans_general("\u5f4c", 
+                                                         t_s))
+  } else {
+    stringr::str_replace_all(x, 
+                             "\u5f25", 
+                             stringi::stri_trans_general("\u5f25", 
+                                                         s_t))
+  }
+}
+
