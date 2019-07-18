@@ -5,7 +5,9 @@
 library(dplyr)
 library(assertr)
 library(ensurer)
-source(here::here("R/read_zipcode.R"))
+# このファイルをリポジトリの外で使うことがあるので関数はリポジトリから読み込む
+# source(here::here("R/read_zipcode.R"))
+source("https://raw.githubusercontent.com/uribo/jp-address/9b632cc3073e634cb39e2d952b198658f4af5314/R/read_zipcode.R")
 if (length(fs::dir_ls(here::here("data-raw"), regexp = "japanpost_")) != 2) {
   library(rvest)
   
