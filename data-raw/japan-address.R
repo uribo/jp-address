@@ -2,9 +2,12 @@
 # 日本郵便
 # 郵便番号データダウンロード
 ################################
+library(dplyr)
+library(assertr)
+library(ensurer)
+source(here::here("R/read_zipcode.R"))
 if (length(fs::dir_ls(here::here("data-raw"), regexp = "japanpost_")) != 2) {
   library(rvest)
-  library(ensurer)
   
   if (rlang::is_false(dir.exists(here::here("data-raw"))))
     dir.create(here::here("data-raw"))
@@ -65,3 +68,26 @@ if (length(fs::dir_ls(here::here("data-raw"), regexp = "japanpost_")) != 2) {
           exdir = here::here("data-raw/japanpost_jigyosyo"))
   }
 }
+
+df_japanpost_zip <-
+  fs::dir_ls(here::here("data-raw/japanpost_kogaki/")) %>% 
+  ensure(length(.) == 47L) %>%
+  purrr::map_dfr(
+    ~ read_zipcode(.x) %>%
+      select(prefecture,
+             jis_code,
+             zip_code,
+             city,
+             street)) %>% 
+  mutate(street = stringr::str_remove_all(street, "\\(.+\\)")) %>% 
+  verify(expr = dim(.) == c(124267, 5)) %>% 
+  mutate(is_jigyosyo = FALSE) %>% 
+  bind_rows(
+    read_zipcode_jigyosyo(here::here("data-raw/japanpost_jigyosyo/JIGYOSYO.CSV")) %>% 
+      select(prefecture, jis_code, zip_code = jigyosyo_identifier, city, street) %>% 
+      verify(expr = dim(.) == c(22305, 5)) %>% 
+      mutate(is_jigyosyo = TRUE)) %>% 
+  mutate(zip_code = zipcode_spacer(zip_code, remove = FALSE)) %>% 
+  verify(nrow(.) == 146572L) %>% 
+  distinct(jis_code, zip_code, city, street, .keep_all = TRUE) %>% 
+  verify(nrow(.) == 146035L)
