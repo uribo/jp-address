@@ -1,6 +1,7 @@
 ################################
 # 日本郵便
 # 郵便番号データダウンロード
+# last update: 2019-07-26
 ################################
 library(dplyr)
 library(assertr)
@@ -10,10 +11,8 @@ library(ensurer)
 source("https://raw.githubusercontent.com/uribo/jp-address/9b632cc3073e634cb39e2d952b198658f4af5314/R/read_zipcode.R")
 if (length(fs::dir_ls(here::here("data-raw"), regexp = "japanpost_")) != 2) {
   library(rvest)
-  
   if (rlang::is_false(dir.exists(here::here("data-raw"))))
     dir.create(here::here("data-raw"))
-  
   japan_post_site <- "https://www.post.japanpost.jp"
   
   target_urls <- 
@@ -45,6 +44,7 @@ if (length(fs::dir_ls(here::here("data-raw"), regexp = "japanpost_")) != 2) {
       purrr::walk(
         ~ unzip(zipfile = .x, 
                 exdir = here::here("data-raw/japanpost_kogaki")))
+    unlink(fs::dir_ls(here::here("data-raw/japanpost_kogaki"), regexp = ".zip$"))
   }
   # 2. 事業所 ------------------------------------------------------------------
   if (dir.exists(here::here("data-raw/japanpost_jigyosyo")) == FALSE)
@@ -69,6 +69,8 @@ if (length(fs::dir_ls(here::here("data-raw"), regexp = "japanpost_")) != 2) {
                                basename(target_files)), 
           exdir = here::here("data-raw/japanpost_jigyosyo"))
   }
+  unlink(here::here("data-raw/japanpost_jigyosyo/", 
+                    basename(target_files)))
 }
 
 df_japanpost_zip <-
@@ -82,14 +84,14 @@ df_japanpost_zip <-
              city,
              street)) %>% 
   mutate(street = stringr::str_remove_all(street, "\\(.+\\)")) %>% 
-  verify(expr = dim(.) == c(124267, 5)) %>% 
+  verify(expr = dim(.) == c(124271, 5)) %>% 
   mutate(is_jigyosyo = FALSE) %>% 
   bind_rows(
     read_zipcode_jigyosyo(here::here("data-raw/japanpost_jigyosyo/JIGYOSYO.CSV")) %>% 
       select(prefecture, jis_code, zip_code = jigyosyo_identifier, city, street) %>% 
-      verify(expr = dim(.) == c(22305, 5)) %>% 
+      verify(expr = dim(.) == c(22313, 5)) %>% 
       mutate(is_jigyosyo = TRUE)) %>% 
   mutate(zip_code = zipcode_spacer(zip_code, remove = FALSE)) %>% 
-  verify(nrow(.) == 146572L) %>% 
+  verify(nrow(.) == 146584L) %>% 
   distinct(jis_code, zip_code, city, street, .keep_all = TRUE) %>% 
-  verify(nrow(.) == 146035L)
+  verify(nrow(.) == 146046L)
