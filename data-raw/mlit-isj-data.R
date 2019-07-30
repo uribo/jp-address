@@ -1,6 +1,7 @@
 ################################
 # 国土交通省 位置参照情報ダウンロードサービス
 # http://nlftp.mlit.go.jp/isj/
+# last update: 2019-07-30
 ################################
 library(dplyr)
 library(readr)
@@ -16,24 +17,20 @@ req_isj <- function(areaCode = 33000, fyear = "平成29年", posLevel = 0) {
                            areaCode = paste(areaCode, collapse = ","),
                            fiscalyear = paste0("'", fyear, "'"),
                            posLevel = posLevel))
-  
   r_xml <-
     xml2::as_list(httr::content(r, encoding = "UTF-8"))
-  
   r_xml2_items <-
     purrr::pluck(purrr::pluck(r_xml, "ISJ_URL_INF"), "ISJ_URL")
-  
   df_isj <-
     tibble::tibble(item = r_xml2_items)
-  
   df_isj %>%
     tidyr::hoist(item,
-                 fyear = list("fiscalyear", 1L),
-                 prefCode = list("prefCode", 1L),
-                 posLevel = list("posLevel", 1L),
+                 fyear      = list("fiscalyear", 1L),
+                 prefCode   = list("prefCode", 1L),
+                 posLevel   = list("posLevel", 1L),
                  prefecture = list("prefName", 1L),
-                 city = list("cityName", 1L),
-                 ver = list("verNumber", 1L),
+                 city       = list("cityName", 1L),
+                 ver        = list("verNumber", 1L),
                  zipFileUrl = list("zipFileUrl", 1L)) %>%
     dplyr::select(-item)
 }
@@ -44,14 +41,19 @@ source("https://gist.githubusercontent.com/uribo/5c67ef24dcaf17402175b0d474cd8cb
 source("https://gist.githubusercontent.com/uribo/5c67ef24dcaf17402175b0d474cd8cb2/raw/6ae633c7f39d3d7498d1b1516f8313b8bd5f97e5/ksj_data_url.R")
 source("https://gist.githubusercontent.com/uribo/4bdf76e07399ad75e9896763dd24aa60/raw/281c7df7912e248754848261977a70e15c807fb3/ksj_collect_n03.R")
 
+# resourceからコピーしておく... なぜ2017??
+if (dir.exists(here::here("data-raw/国土数値情報/N03/2017")) == FALSE)
+  dir.create(here::here("data-raw/国土数値情報/N03/2017"), recursive = TRUE)
+
 files <-
   fs::dir_ls(here::here("data-raw/国土数値情報/N03/2017/"),
              recurse = TRUE,
              regexp = ".shp")
 
 if (length(files) != 47) {
-  dir.create(here::here("data-raw/国土数値情報/N03/2017"), recursive = TRUE)
-  usethis::use_git_ignore("国土数値情報/", directory = here::here("data-raw"))
+  if (file.exists(here::here("data-raw/.gitignore")) == FALSE)
+    write(cat("国土数値情報/\n"), file = here::here("data-raw/.gitignore"))
+  usethis::use_git_ignore("国土数値情報/", directory = "data-raw")
   dl_urls <-
     ksj_data_url("N03", fiscalyear = 2017) %>%
     dplyr::pull(zipFileUrl) %>%
@@ -59,22 +61,25 @@ if (length(files) != 47) {
   dl_urls %>%
     purrr::walk(
       ~ curl::curl_download(.x,
-                            destfile = paste0(here::here("data-raw/国土数値情報/N03/2017"),
+                            destfile = paste0(here::here("data-raw/国土数値情報/N03/2017/"),
                                               basename(.x[1]))))
-  fs::dir_ls(here::here("data-raw/国土数値情報/N03/2017"),
-             regexp = ".+zip") %>%
+  dl_files <- 
+    fs::dir_ls(here::here("data-raw/国土数値情報/N03/2017"),
+               regexp = ".+zip")
+  dl_files %>%
     purrr::walk(
       ~ unzip(zipfile = .x,
-              exdir = paste0(here::here("data-raw/国土数値情報/N03/2017"),
+              exdir = paste0(here::here("data-raw/国土数値情報/N03/2017/"),
                              stringr::str_remove(basename(.x), ".zip"))))
+  unlink(dl_files)
   files <-
     fs::dir_ls(here::here("data-raw/国土数値情報/N03/2017/"),
                recurse = TRUE,
                regexp = ".shp")
-  
 }
 
-if (file.exists("data-raw/isj_2017a.rds") == FALSE) {
+if (file.exists(here::here("data-raw/isj_2017a.rds")) == FALSE) {
+  # ~ 5min.
   jp_city_codes <- 
     files %>%
     purrr::map(
@@ -95,7 +100,6 @@ if (file.exists("data-raw/isj_2017a.rds") == FALSE) {
                         basename(.x))), 
       rate = purrr::rate_delay(pause = 3), 
       quiet = FALSE)
-  
   req_isj(areaCode = jp_city_codes,
           "平成29年", 
           posLevel = 0) %>%
@@ -116,7 +120,8 @@ if (file.exists("data-raw/isj_2017a.rds") == FALSE) {
   # 大字・町丁目レベル のダウンロード
   # posLevel = 1
   # req_isj("33000", "平成29年", posLevel = 1)
-  dir.create(here::here("data-raw/位置参照情報/大字・町丁目レベル/h29"), recursive = TRUE)
+  dir.create(here::here("data-raw/位置参照情報/大字・町丁目レベル/h29"), 
+             recursive = TRUE)
   
   download_zip <- 
     purrr::slowly(~ curl::curl_download(
@@ -126,12 +131,24 @@ if (file.exists("data-raw/isj_2017a.rds") == FALSE) {
       rate = purrr::rate_delay(pause = 3), 
       quiet = FALSE)
   
-  req_isj(areaCode = jp_city_codes,
-          "平成29年", 
-          posLevel = 1) %>%
-    dplyr::pull(zipFileUrl) %>%
-    purrr::map(download_zip)
+  # jp_city_codes <- 
+  #   jp_city_codes[!jp_city_codes %in% jp_city_codes[c(seq.int(189, 194))]]
   
+  jp_city_codes %>% 
+    purrr::map(
+      ~ req_isj(areaCode = .x,
+                "平成29年", 
+                posLevel = 1) %>%
+        dplyr::pull(zipFileUrl) %>%
+        purrr::map(download_zip))
+  dl_files <- 
+    fs::dir_ls(here::here("data-raw/位置参照情報/街区レベル/h29/"), 
+               regexp = ".zip$")
+  dl_files %>% 
+    purrr::map(
+      ~ unzip(zipfile = .x,
+              exdir = here::here("data-raw/位置参照情報/街区レベル/h29/")))
+  unlink(dl_files)
   
   # a. 街区レベル -----------------------------------------------------------------------
   if (rlang::is_false(file.exists(here::here("data-raw/isj_2017a.rds")))) {
