@@ -12,4 +12,5 @@ RUN set -x && \
   
 RUN set -x && \
   installGithub.r \
+    'r-lib/vctrs' \
     'tidyverse/tidyr'
