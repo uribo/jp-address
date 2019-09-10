@@ -4,6 +4,7 @@
 library(sf)
 library(dplyr)
 source(here::here("data-raw/japan-address.R"))
+source(here::here("R/estat.R"))
 
 # sf_estat_pref08 <- 
 #   st_read("~/Documents/resources/e-Stat/2015_国勢調査_小地域/A002005212015DDSWC08/h27ka08.shp",
