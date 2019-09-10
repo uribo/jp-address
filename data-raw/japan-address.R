@@ -1,7 +1,7 @@
 ################################
 # 日本郵便
 # 郵便番号データダウンロード
-# last update: 2019-07-30
+# last update: 2019-09-10
 ################################
 library(dplyr)
 library(assertr)
@@ -43,7 +43,8 @@ if (length(fs::dir_ls(here::here("data-raw"), regexp = "japanpost_")) != 2) {
     here::here("data-raw/japanpost_kogaki/", basename(target_files)) %>% 
       purrr::walk(
         ~ unzip(zipfile = .x, 
-                exdir = here::here("data-raw/japanpost_kogaki")))
+                exdir = here::here("data-raw/japanpost_kogaki"),
+                overwrite = TRUE))
     unlink(fs::dir_ls(here::here("data-raw/japanpost_kogaki"), regexp = ".zip$"))
   }
   # 2. 事業所 ------------------------------------------------------------------
@@ -67,7 +68,8 @@ if (length(fs::dir_ls(here::here("data-raw"), regexp = "japanpost_")) != 2) {
                                             basename(.)))
     unzip(zipfile = here::here("data-raw/japanpost_jigyosyo/", 
                                basename(target_files)), 
-          exdir = here::here("data-raw/japanpost_jigyosyo"))
+          exdir = here::here("data-raw/japanpost_jigyosyo"),
+          overwrite = TRUE)
   }
   unlink(here::here("data-raw/japanpost_jigyosyo/", 
                     basename(target_files)))
@@ -84,14 +86,14 @@ df_japanpost_zip <-
              city,
              street)) %>% 
   mutate(street = stringr::str_remove_all(street, "\\(.+\\)")) %>% 
-  verify(expr = dim(.) == c(124271, 5)) %>% 
+  verify(expr = dim(.) == c(124329, 5)) %>% 
   mutate(is_jigyosyo = FALSE) %>% 
   bind_rows(
     read_zipcode_jigyosyo(here::here("data-raw/japanpost_jigyosyo/JIGYOSYO.CSV")) %>% 
       select(prefecture, jis_code, zip_code = jigyosyo_identifier, city, street) %>% 
-      verify(expr = dim(.) == c(22313, 5)) %>% 
+      verify(expr = dim(.) == c(22329, 5)) %>% 
       mutate(is_jigyosyo = TRUE)) %>% 
   mutate(zip_code = zipcode_spacer(zip_code, remove = FALSE)) %>% 
-  verify(nrow(.) == 146584L) %>% 
+  verify(nrow(.) == 146658L) %>% 
   distinct(jis_code, zip_code, city, street, .keep_all = TRUE) %>% 
-  verify(nrow(.) == 146046L)
+  verify(nrow(.) == 146113L)
