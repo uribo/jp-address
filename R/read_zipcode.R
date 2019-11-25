@@ -32,9 +32,7 @@ read_zipcode_jigyosyo <- function(path) {
 # type... oogaki, kogaki, jigyosyo
 # ref) https://www.post.japanpost.jp/zipcode/dl/readme.html
 read_zipcode <- function(path, type = c("kogaki")) {
-  
   address_level <- c("prefecture", "city", "street")
-  
   dplyr::mutate_if(readr::read_csv(path, 
                                      locale = readr::locale(encoding = "cp932"),
                                      col_names = c("jis_code", "old_zip_code", "zip_code", 
