@@ -12,3 +12,7 @@
 - 位置参照情報
 - 日本郵便
 - e-stat
+
+パッケージ化されていないため、関数を利用するには `source()` で読み込む必要があります。
+
+関数の使い方は[Wiki](https://github.com/uribo/jp-address/wiki)にまとめていきます。

@@ -12,6 +12,10 @@ library(dplyr)
 source(here::here("R/read_zipcode.R"))
 ```
 
+`read_zipcode()` で日本郵便が公開する住所データファイルを読み込みます。
+
+`read_zipcode_jigyosyo()`
+
 ```{r}
 df_zip_pref45 <- 
   read_zipcode(here::here("data-raw/japanpost_kogaki/45MIYAZA.CSV")) %>% 
@@ -19,7 +23,9 @@ df_zip_pref45 <-
          starts_with("is_"),
          status,
          modify_type)
+```
 
+```{r}
 df_zip_pref45 %>% 
   count(is_street_duplicate)
 
@@ -42,8 +48,13 @@ df_zip_pref45 %>%
   count(is_zipcode_duplicate)
 ```
 
+`zipcode_spacer()` は郵便番号のような7桁の数値に対し、3桁目と4桁目の間にハイフンを入れたり、また、ハイフンを取り除きます。
+
 ```{r}
+zipcode_spacer("3100004")
+zipcode_spacer(3100004)
+
+# ハイフンを取り除くには remove引数でTRUEを指定します
 zipcode_spacer("310-0004", remove = TRUE)
-zipcode_spacer("3100004", remove = FALSE)
 ```
 

@@ -9,8 +9,3 @@ ARG GITHUB_PAT
 
 RUN set -x && \
   echo "GITHUB_PAT=$GITHUB_PAT" >> /usr/local/lib/R/etc/Renviron
-  
-RUN set -x && \
-  installGithub.r \
-    'r-lib/vctrs' \
-    'tidyverse/tidyr'
