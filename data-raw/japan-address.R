@@ -1,7 +1,7 @@
 ################################
 # 日本郵便
 # 郵便番号データダウンロード
-# last update: 2019-09-10
+# last update: 2019-11-25
 ################################
 library(dplyr)
 library(assertr)
@@ -14,14 +14,14 @@ if (length(fs::dir_ls(here::here("data-raw"), regexp = "japanpost_")) != 2) {
   if (rlang::is_false(dir.exists(here::here("data-raw"))))
     dir.create(here::here("data-raw"))
   japan_post_site <- "https://www.post.japanpost.jp"
-  
   target_urls <- 
     glue::glue(japan_post_site, "/zipcode/download.html") %>% 
     read_html() %>% 
     html_nodes(css = '#main-box > div > ul > li > a') %>% 
     html_attr(name = "href") %>% 
     stringr::str_subset("bangobo", negate = TRUE) %>% 
-    paste0(japan_post_site, .)
+    paste0(japan_post_site, .) %>% 
+    ensure(length(.) == 4L)
   # 1. 住所の郵便番号 --------------------------------------------------------------
   if (dir.exists(here::here("data-raw/japanpost_kogaki")) == FALSE)
     dir.create(here::here("data-raw/japanpost_kogaki"))
@@ -45,7 +45,8 @@ if (length(fs::dir_ls(here::here("data-raw"), regexp = "japanpost_")) != 2) {
         ~ unzip(zipfile = .x, 
                 exdir = here::here("data-raw/japanpost_kogaki"),
                 overwrite = TRUE))
-    unlink(fs::dir_ls(here::here("data-raw/japanpost_kogaki"), regexp = ".zip$"))
+    unlink(fs::dir_ls(here::here("data-raw/japanpost_kogaki"), 
+                      regexp = ".zip$"))
   }
   # 2. 事業所 ------------------------------------------------------------------
   if (dir.exists(here::here("data-raw/japanpost_jigyosyo")) == FALSE)
@@ -59,7 +60,7 @@ if (length(fs::dir_ls(here::here("data-raw"), regexp = "japanpost_")) != 2) {
       html_nodes(css = '#main-box > div > div:nth-child(9) > ul > li > a') %>% 
       html_attr(name = "href") %>% 
       ensure(length(.) == 1L)
-# 正解... https://www.post.japanpost.jp/zipcode/dl/jigyosyo/zip/jigyosyo.zip
+    # 正解... https://www.post.japanpost.jp/zipcode/dl/jigyosyo/zip/jigyosyo.zip
     #     https://www.post.japanpost.jp/zipcode/dl/jigyosyo/zip/jigyosyo.zip
     target_files %>% 
       glue::glue(glue::glue(japan_post_site, "/zipcode/dl/jigyosyo/"), .) %>% 
@@ -86,14 +87,14 @@ df_japanpost_zip <-
              city,
              street)) %>% 
   mutate(street = stringr::str_remove_all(street, "\\(.+\\)")) %>% 
-  verify(expr = dim(.) == c(124329, 5)) %>% 
+  verify(expr = dim(.) == c(124340, 5)) %>% 
   mutate(is_jigyosyo = FALSE) %>% 
   bind_rows(
     read_zipcode_jigyosyo(here::here("data-raw/japanpost_jigyosyo/JIGYOSYO.CSV")) %>% 
       select(prefecture, jis_code, zip_code = jigyosyo_identifier, city, street) %>% 
-      verify(expr = dim(.) == c(22329, 5)) %>% 
+      verify(expr = dim(.) == c(22324, 5)) %>% 
       mutate(is_jigyosyo = TRUE)) %>% 
   mutate(zip_code = zipcode_spacer(zip_code, remove = FALSE)) %>% 
-  verify(nrow(.) == 146658L) %>% 
+  verify(nrow(.) == 146664L) %>% 
   distinct(jis_code, zip_code, city, street, .keep_all = TRUE) %>% 
-  verify(nrow(.) == 146113L)
+  verify(nrow(.) == 146117L)

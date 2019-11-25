@@ -28,7 +28,9 @@ df_zip_pref45 <-
 ```{r}
 df_zip_pref45 %>% 
   count(is_street_duplicate)
+```
 
+```{r}
 df_zip_pref45 %>% 
   filter(is_street_duplicate == FALSE) %>% 
   pull(zip_code) %>% 
