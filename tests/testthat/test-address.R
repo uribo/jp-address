@@ -23,4 +23,13 @@ test_that("address separate works", {
       street = "朝日町"
     )
   )
+  expect_equal(
+    separate_address("北海道余市郡余市町黒川町十九丁目"),
+    list(
+      prefecture = "北海道",
+      city = "余市郡余市町",
+      street = "黒川町十九丁目"
+    )
+  )
+  
 })

@@ -19,27 +19,33 @@ separate_address_cols <- function(df, col = "address", into = c("prefecture", "a
 #' @examples 
 #' separate_address("北海道札幌市中央区北1条西2丁目")
 separate_address <- function(x) {
+  city_name_regex <- 
+    "(岡山市南区|(坂井|町田|市原|市川|村上)市|村山市|余市郡余市町|(余市|高市)郡.+(町|村)|柴田郡(村田町|大河原町)|(武蔵|東)村山市|西村山郡河北町|北村山郡大石田町|(東|西|北)村山郡.+(町|村)|田村(市|郡..町)|芳賀郡市貝町|(佐波郡)?玉村町|[羽大]村市|(十日|大)町市|(中新川郡)?上市町|(野々|[四廿]日)市市|西八代郡市川三郷町|神崎郡市川町|高市郡(高取町|明日香村)|(吉野郡)?下市町|(杵島郡)?大町町|(南相馬|北上|奥州|那須塩原|印西|上越|姫路|玉野|山口|佐伯)市|(千代田|中央|港|新宿|文京|台東|墨田|江東|品川|目黒|大田|世田谷|渋谷|中野|杉並|豊島|北|荒川|板橋|練馬|足立|葛飾|江戸川)区|.+市.+区|市|町|村)"
   split_pref = 
-    stringr::str_split(x, stringr::regex("(?<=(都|道|府|県))"), n = 2, simplify = TRUE) %>% 
+    stringr::str_split(x, stringr::regex("(?<=(東京都|道|府|県))"), n = 2, simplify = TRUE) %>% 
     stringr::str_subset(".{1}", negate = FALSE)
   if (length(split_pref) == 1L) {
     split_pref[2] <- split_pref
     split_pref[1] <- NA_character_
   }
   if (length(split_pref[2] %>% 
-             stringr::str_split("余市郡赤井川村|余市郡仁木町|余市郡余市町|高市郡高取町|高市郡明日香村", n = 2, simplify = TRUE) %>% 
+             stringr::str_split(city_name_regex,
+                                n = 2, 
+                                simplify = TRUE) %>% 
              stringr::str_subset(".{1}", negate = FALSE)) == 0L) {
     res <- 
       list(
         prefecture = split_pref[1],
         city = 
           split_pref[2] %>% 
-          stringr::str_replace("((余市|高市)郡.+(町|村)|.+市.+区|市|町|村)", replacement = "\\1"),
+          stringr::str_replace(city_name_regex, 
+                               replacement = "\\1"),
         street = 
           split_pref[2] %>% 
           stringr::str_remove(
             split_pref[2] %>% 
-              stringr::str_replace("((余市|高市)郡.+(町|村)|.+市.+区|市|町|村)", replacement = "\\1")
+              stringr::str_replace(city_name_regex, 
+                                   replacement = "\\1")
           )
       )  
   } else {
@@ -48,14 +54,18 @@ separate_address <- function(x) {
         prefecture = split_pref[1],
         city = 
           split_pref[2] %>% 
-          stringr::str_replace("((余市|高市)郡.+(町|村)|.+市.+区|市|町|村)(.+)", replacement = "\\1"),
+          stringr::str_replace(
+            paste0(city_name_regex, "(.+)"), 
+            replacement = "\\1"),
         street = 
           split_pref[2] %>% 
           stringr::str_remove(
             split_pref[2] %>% 
-              stringr::str_replace("((余市|高市)郡.+(町|村)|.+市.+区|市|町|村)(.+)", replacement = "\\1")
+              stringr::str_replace(
+                paste0(city_name_regex, "(.+)"), 
+                replacement = "\\1")
           )
-      )  
+      )
   }
   res %>% 
     purrr::map(
