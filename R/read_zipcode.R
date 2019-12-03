@@ -2,7 +2,7 @@ is_zip <- function(x) {
   # 3、5桁はとりあえず無視
   checked <- stringr::str_detect(x, "^([0-9]{3}-[0-9]{4}|[0-9]{3}[0-9]{4})$")
   if (rlang::is_false(checked))
-    rlang::inform("7桁の数値ではありません")
+    rlang::inform("7\u6841\u306e\u6570\u5024\u3067\u306f\u3042\u308a\u307e\u305b\u3093")
   checked
 }
 
