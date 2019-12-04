@@ -1,7 +1,7 @@
 ################################
 # 日本郵便
 # 郵便番号データダウンロード
-# last update: 2019-11-25
+# last update: 2019-12-04
 ################################
 library(dplyr)
 library(assertr)
@@ -9,7 +9,7 @@ library(ensurer)
 # このファイルをリポジトリの外で使うことがあるので関数はリポジトリから読み込む
 # source(here::here("R/read_zipcode.R"))
 source("https://raw.githubusercontent.com/uribo/jp-address/9b632cc3073e634cb39e2d952b198658f4af5314/R/read_zipcode.R")
-if (length(fs::dir_ls(here::here("data-raw"), regexp = "japanpost_")) != 2) {
+if (length(fs::dir_ls(here::here("data-raw"), regexp = "japanpost_")) != 3) {
   library(rvest)
   if (rlang::is_false(dir.exists(here::here("data-raw"))))
     dir.create(here::here("data-raw"))
@@ -87,14 +87,14 @@ df_japanpost_zip <-
              city,
              street)) %>% 
   mutate(street = stringr::str_remove_all(street, "\\(.+\\)")) %>% 
-  verify(expr = dim(.) == c(124340, 5)) %>% 
+  verify(expr = dim(.) == c(124352, 5)) %>% 
   mutate(is_jigyosyo = FALSE) %>% 
   bind_rows(
     read_zipcode_jigyosyo(here::here("data-raw/japanpost_jigyosyo/JIGYOSYO.CSV")) %>% 
       select(prefecture, jis_code, zip_code = jigyosyo_identifier, city, street) %>% 
-      verify(expr = dim(.) == c(22324, 5)) %>% 
+      verify(expr = dim(.) == c(22322, 5)) %>% 
       mutate(is_jigyosyo = TRUE)) %>% 
   mutate(zip_code = zipcode_spacer(zip_code, remove = FALSE)) %>% 
-  verify(nrow(.) == 146664L) %>% 
+  verify(nrow(.) == 146674L) %>% 
   distinct(jis_code, zip_code, city, street, .keep_all = TRUE) %>% 
-  verify(nrow(.) == 146117L)
+  verify(nrow(.) == 146127L)
