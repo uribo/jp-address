@@ -123,15 +123,12 @@ if (length(fs::dir_ls(here::here("data-raw"), regexp = "japanpost_")) != 3) {
 }
 
 df_japanpost_zip <-
-  fs::dir_ls(here::here("data-raw/japanpost_kogaki/")) %>% 
-  ensure(length(.) == 47L) %>%
-  purrr::map_dfr(
-    ~ read_zipcode(.x) %>%
-      select(prefecture,
-             jis_code,
-             zip_code,
-             city,
-             street)) %>% 
+  read_zipcode(here::here("data-raw/japanpost_kogaki/KEN_ALL.CSV")) %>%
+  select(prefecture,
+         jis_code,
+         zip_code,
+         city,
+         street) %>% 
   mutate(street = stringr::str_remove_all(street, "\\(.+\\)")) %>% 
   verify(expr = dim(.) == c(124352, 5)) %>% 
   mutate(is_jigyosyo = FALSE) %>% 
