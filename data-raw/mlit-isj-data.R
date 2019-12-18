@@ -1,16 +1,17 @@
 ################################
 # 国土交通省 位置参照情報ダウンロードサービス
 # http://nlftp.mlit.go.jp/isj/
-# last update: 2019-07-30
+# last update: 2019-07-30 (平成29年版)
 ################################
 library(dplyr)
 library(readr)
 library(assertr)
 library(ensurer)
+library(kuniumi)
 
 # download ----------------------------------------------------------------
 # posLevel... 0: 街区レベル、1: 大字・町丁目レベル
-req_isj <- function(areaCode = 33000, fyear = "平成29年", posLevel = 0) {
+req_isj <- function(areaCode = 33000, fyear = c("平成29年"), posLevel = 0) {
   r <-
     httr::GET("http://nlftp.mlit.go.jp/isj/api/1.0b/index.php/app/getISJURL.xml",
               query = list(appId = "isjapibeta1",
@@ -19,20 +20,34 @@ req_isj <- function(areaCode = 33000, fyear = "平成29年", posLevel = 0) {
                            posLevel = posLevel))
   r_xml <-
     xml2::as_list(httr::content(r, encoding = "UTF-8"))
-  r_xml2_items <-
-    purrr::pluck(purrr::pluck(r_xml, "ISJ_URL_INF"), "ISJ_URL")
-  df_isj <-
-    tibble::tibble(item = r_xml2_items)
-  df_isj %>%
-    tidyr::hoist(item,
-                 fyear      = list("fiscalyear", 1L),
-                 prefCode   = list("prefCode", 1L),
-                 posLevel   = list("posLevel", 1L),
-                 prefecture = list("prefName", 1L),
-                 city       = list("cityName", 1L),
-                 ver        = list("verNumber", 1L),
-                 zipFileUrl = list("zipFileUrl", 1L)) %>%
-    dplyr::select(-item)
+  status <- 
+    purrr::pluck(purrr::pluck(purrr::pluck(purrr::pluck(r_xml, "ISJ_URL_INF"), "RESULT"), "STATUS"), 1)
+  if (status == "1") {
+    tibble::tibble(
+      fyear = fyear,
+      prefCode = as.numeric(substr(areaCode, 1, 2)),
+      posLevel = posLevel,
+      prefecture = zipangu::jpnprefs[[as.numeric(substr(areaCode, 1, 2)), "prefecture_kanji"]],
+      city = NA_character_,
+      ver = NA_character_,
+      zipFileUrl = NA_character_
+    )
+  } else if (status == "0") {
+    r_xml2_items <-
+      purrr::pluck(purrr::pluck(r_xml, "ISJ_URL_INF"), "ISJ_URL")
+    df_isj <-
+      tibble::tibble(item = r_xml2_items)
+    df_isj %>%
+      tidyr::hoist(item,
+                   fyear      = list("fiscalyear", 1L),
+                   prefCode   = list("prefCode", 1L),
+                   posLevel   = list("posLevel", 1L),
+                   prefecture = list("prefName", 1L),
+                   city       = list("cityName", 1L),
+                   ver        = list("verNumber", 1L),
+                   zipFileUrl = list("zipFileUrl", 1L)) %>%
+      dplyr::select(-item)
+  }
 }
 
 # 全国の市町村ダウンロード ------------------------------------------------------------
@@ -81,25 +96,14 @@ if (length(files) != 47) {
 if (file.exists(here::here("data-raw/isj_2017a.rds")) == FALSE) {
   # ~ 5min.
   jp_city_codes <- 
-    files %>%
-    purrr::map(
-      ~ read_ksj_n03(.x) %>%
-        dplyr::pull(administrativeAreaCode)
-    ) %>%
-    purrr::reduce(c) %>%
-    unique() %>% 
-    na.omit() %>% 
+    files %>% 
+    purrr::walk(
+      extract_city_codes) %>% 
+    purrr::reduce(c) %>% 
     ensure(length(.) == 1902)
   
   dir.create(here::here("data-raw/位置参照情報/街区レベル/h29"), recursive = TRUE)
   
-  download_zip <- 
-    purrr::slowly(~ curl::curl_download(
-      .x,
-      destfile = paste0(here::here("data-raw/位置参照情報/街区レベル/h29/"),
-                        basename(.x))), 
-      rate = purrr::rate_delay(pause = 3), 
-      quiet = FALSE)
   req_isj(areaCode = jp_city_codes,
           "平成29年", 
           posLevel = 0) %>%
@@ -122,15 +126,6 @@ if (file.exists(here::here("data-raw/isj_2017a.rds")) == FALSE) {
   # req_isj("33000", "平成29年", posLevel = 1)
   dir.create(here::here("data-raw/位置参照情報/大字・町丁目レベル/h29"), 
              recursive = TRUE)
-  
-  download_zip <- 
-    purrr::slowly(~ curl::curl_download(
-      .x,
-      destfile = paste0(here::here("data-raw/位置参照情報/街区レベル/h29/"),
-                        basename(.x))), 
-      rate = purrr::rate_delay(pause = 3), 
-      quiet = FALSE)
-  
   # jp_city_codes <- 
   #   jp_city_codes[!jp_city_codes %in% jp_city_codes[c(seq.int(189, 194))]]
   
