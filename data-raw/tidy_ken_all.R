@@ -57,6 +57,15 @@ df %>%
 
 # tidy --------------------------------------------------------------------
 source("R/split_seq_address.R")
+# str <- 
+#   "犬落瀬(内金矢、内山、岡沼、金沢、金矢、上淋代、木越、権現沢、四木、七百、下久保「174を除く」、下淋代、高森、通目木、坪毛沢「2沢、南平、柳沢、大曲)"
+# fix_unclose_addr(str)
+# fix_unclose_addr <- function(str) {
+#   if (stringr::str_detect(str, "「[^」]*$"))
+#     stringr::str_replace(str, "「[^」]*$", "\\0」")
+#   else 
+#     str
+# }
 # df_tgt %>%
 #   mutate(split_street = purrr::pmap(.,
 #                                     ~ split_seq_address(..4 %>%
@@ -78,15 +87,6 @@ source("R/split_seq_address.R")
 #   ungroup() %>%
 #   slice(1L)
 # 
-# split_multiple_str <- function(str, commons) {
-#   str %>%
-#     stringr::str_extract("\\(.+\\)") %>%
-#     stringr::str_remove_all("\\(|\\)") %>%
-#     stringr::str_split("、", simplify = TRUE)  %>%
-#     stringr::str_c(commons, .)
-# }
-# 
-# split_multiple_str(df_tgt$street, "亀屋町")
 # df_tgt %>%
 #   mutate(split_street = purrr::pmap(.,
 #                           ~ split_multiple_str(..4, commons = "亀屋町"))) %>%
@@ -140,10 +140,13 @@ tidy_zipcode <- function(df) {
     #assertr::verify(nrow(.) == 123834) # -515 (単純に2行分ではない。3行のものもある)
   df_fix <-
     df_fix %>%
-    dplyr::bind_rows(df_merge_rows) %>%
-    dplyr::arrange(rowid) %>% 
-    dplyr::select(-rowid)
-  df_fix
+    dplyr::bind_rows(df_merge_rows) %>% 
+    mutate(street = if_else(stringr::str_detect(street, "大曲\\)$"),
+                            stringr::str_replace(street, "大曲\\)", "大曲」\\)"),
+                            street))
+
+  df_fix %>% 
+    dplyr::arrange(rowid)# %>% dplyr::select(-rowid)
   # df_torina <-
   #   df_fix %>%
   #   dplyr::filter(stringr::str_detect(city, "京都市((上|中|下)京|東山)区"),
@@ -177,8 +180,24 @@ separate_street_rows <- function(data, col, pattern = "丁目", split_chr, prefi
 
 df_fix <-
   df %>%
-  tidy_zipcode() %>% 
-  mutate(id = row_number())
+  tidy_zipcode()# %>% mutate(id = row_number())
+
+
+df_split_rows <- 
+  df_fix %>%
+  dplyr::filter(stringr::str_detect(street, "、")) %>% 
+  dplyr::mutate(split_street = purrr::pmap(.,
+                                           ~ split_inside_address(..6))) %>%
+  tidyr::unnest(cols = split_street) %>%
+  dplyr::select(-street) %>%
+  dplyr::rename(street = split_street) %>%
+  dplyr::select(names(data), "rowid")
+
+df_fix <-
+  df_fix %>% 
+  filter(!rowid %in% df_split_rows$rowid) %>% 
+  bind_rows(df_split_rows)
+
 
 # df_fix <-
 #   df_fix %>%
@@ -187,7 +206,13 @@ df_fix <-
 # 複数の行を一行に
 df_fix %>% 
   filter(zip_code %in% unique(df_multi_rows$zip_code)) %>% 
-  pull(street)
+  pull(street) %>% 
+  stringr::str_subset("除く")
+
+"犬落瀬(内金矢、内山、岡沼、金沢、金矢、上淋代、木越、権現沢、四木、七百、下久保「174を除く」、下淋代、高森、通目木、坪毛沢「2沢、南平、柳沢、大曲」)" %>% 
+  split_inside_address()
+"山田町下谷上(大上谷、修法ケ原、中一里山「9番地の4、12番地を除く」、長尾山、再度公園)" %>% 
+  split_inside_address()
 
 df_fix %>% 
   filter(zip_code == "0660005") %>% 
@@ -198,11 +223,13 @@ df_fix %>%
 
 # 、で区切られた複数の住所を別々の行に分割
 # 合わせて括弧を取り除くが、京都市の通り名は括弧の中の住所が町域名の前に来るようにする
+df %>% 
+  filter(jis_code == "26104", stringr::str_detect(street, "中之町.+寺町通四条上る"))
+# --> 寺町通四条上る中之町
 df_fix %>% 
   filter(jis_code == "26104", stringr::str_detect(street, "寺町通四条上る"))
-# --> 寺町通四条上る中之町
 
-c("26104")
+
 df_fix %>% 
   filter(zip_code =="0350002")
 

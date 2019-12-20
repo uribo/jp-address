@@ -65,16 +65,28 @@ is_jhistorical_street <- function(str) {
 # split_inside_address("材木町(木屋町通松原下る、松原通木屋町東入、松原通高瀬川筋東入)")
 split_multiple_address <- function(str, delim = "、", prefix = NULL, suffix = NULL) {
   x <- 
-    stringr::str_c(str, collapse = "") %>%
+    stringr::str_c(str, collapse = "")
+  x <- 
+    x %>% 
     stringr::str_split(delim, simplify = TRUE) %>% 
     as.vector()
+  if (sum(stringr::str_detect(x, "「|」")) >= 1) {
+    xx <- 
+      str_extract_all(str, "「.+、.+」(?=、)", simplify = TRUE)
+    x[seq.int(str_which(x, "「"), str_which(x, "「") +1)] <- 
+      x[3:4] %>% 
+      stringr::str_remove("「.+|.+」") %>% 
+      stringr::str_subset(".{1}", negate = FALSE) %>% 
+      stringr::str_c(xx)
+    x <- 
+      unique(x)
+  }
   if (!is.null(prefix))
     x <- stringr::str_c(prefix, x)
   if (!is.null(suffix))
     x <- stringr::str_c(x, suffix)
   x
 }
-
 split_inside_address <- function(str, delim = "、", prefix = NULL, suffix = NULL) {
   common_str <- 
     stringr::str_extract(str, "(.*)(?=\\()")
