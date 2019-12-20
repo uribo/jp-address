@@ -8,11 +8,23 @@ library(stringr)
 # 問題点の整理 ------------------------------------------------------------------
 # 1. 複数行への分割
 # 2. 重複
+if (file.exists(here::here("data-raw/japanpost_kogaki/KEN_ALL.CSV")) == FALSE) {
+  df <- 
+    read_zipcode(path = "https://www.post.japanpost.jp/zipcode/dl/oogaki/zip/ken_all.zip",
+               type = "kogaki")
+  dir.create(here::here("data-raw/japanpost_kogaki"))
+  fs::file_copy(list.files(tempdir(), pattern = "KEN_ALL.CSV", full.names = TRUE),
+                new_path = here::here("data-raw/japanpost_kogaki/KEN_ALL.CSV"))
+} else {
+  df <- 
+    read_zipcode(here::here("data-raw/japanpost_kogaki/KEN_ALL.CSV"), 
+                 type = "kogaki")
+}
 df <- 
-  zipangu::read_zipcode(here::here("data-raw/japanpost_kogaki/KEN_ALL.CSV"), 
-                        type = "kogaki") %>% 
+  df %>% 
   select(-old_zip_code, -ends_with("kana"), -status, -modify_type) %>% 
   verify(dim(.) == c(124351, 9))
+
 
 # 1. 複数行への分割
 # > 全角となっている町域部分の文字数が38文字を越える場合、また半角となっているフリガナ部分の文字数が76文字を越える場合は、複数レコードに分割しています
