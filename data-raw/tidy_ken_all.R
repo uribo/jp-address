@@ -1,79 +1,65 @@
+# Pkgs --------------------------------------------------------------------
 library(dplyr)
+library(assertr)
+library(ensurer)
 library(zipangu)
+library(stringr)
 
-df <-
-  read_zipcode("~/Documents/projects2019/jp-address/data-raw/japanpost_kogaki/KEN_ALL.CSV",
-               type = "kogaki") %>%
-  select(-old_zip_code, -ends_with("kana"))
+# 問題点の整理 ------------------------------------------------------------------
+# 1. 複数行への分割
+# 2. 重複
+df <- 
+  zipangu::read_zipcode(here::here("data-raw/japanpost_kogaki/KEN_ALL.CSV"), 
+                        type = "kogaki") %>% 
+  select(-old_zip_code, -ends_with("kana"), -status, -modify_type) %>% 
+  verify(dim(.) == c(124351, 9))
+
+# 1. 複数行への分割
+# > 全角となっている町域部分の文字数が38文字を越える場合、また半角となっているフリガナ部分の文字数が76文字を越える場合は、複数レコードに分割しています
+df_multi_rows <- 
+  df %>% 
+  filter(stringr::str_detect(street, "\\(") & stringr::str_detect(street, "\\)$", negate = TRUE)) %>% 
+  distinct(jis_code, zip_code, street) %>% 
+  verify(nrow(.) == 207L)
+# 3行で一レコード分
+df %>% 
+  filter(zip_code == "0660005") %>% 
+  verify(nrow(.) == 3L)
+
+# 2. 同一郵便番号での都道府県名、市区町村名および町域名の重複
+# is_cyoumoku
+df %>% 
+  distinct(jis_code, street, is_cyoumoku, .keep_all = TRUE) %>%
+  count(jis_code, zip_code, street, sort = TRUE) %>% 
+  filter(n > 1) %>% 
+  verify(nrow(.) == 2L)
+# ここも重複しているが郵便番号は異なる
+df %>% 
+  filter(jis_code == "15101", street == "東栄町") %>% 
+  verify(nrow(.) == 2L)
+duplicate_zipcode <- c("5810027", "6730012")
+df %>% 
+  filter(zip_code %in% duplicate_zipcode) %>% 
+  verify(nrow(.) == 4L)
+
+# 連続した番号の省略
+# 複数住所が同一レコード内で扱われる
+
 
 # 市区町村名の後ろに町域名がなく、番地がくる住所 --> NAで処理?
 df %>%
   filter(stringr::str_detect(street, "の次に番地がくる場合")) %>% 
-  assertr::verify(nrow(.) == 17L)
+  verify(nrow(.) == 17L)
 # 町域名がない市区町村 --> ~~NA~~ そのまま
 df %>%
   filter(stringr::str_detect(street, "一円")) %>% 
-  assertr::verify(nrow(.) == 23L)
+  verify(nrow(.) == 23L)
 
-seq_split_numchar <- function(str, split_chr = "-", prefix = NULL, suffix = NULL, seq = TRUE) {
-  x_split <-
-    str %>%
-    stringr::str_split(split_chr, simplify = TRUE)
-  # length(x_split) == 2L
-  seq_num <- x_split
-  if (!is.null(prefix)) {
-    seq_num <-
-      stringr::str_remove(seq_num, prefix)
-    x_split <-
-      x_split %>%
-      purrr::modify_if(~ stringr::str_detect(.x, paste0("^", prefix), negate = TRUE),
-                       ~ stringr::str_c(prefix, .x))
-  }
-  if (!is.null(suffix)) {
-    seq_num <-
-      stringr::str_remove(seq_num, paste0(suffix, ".+"))
-    x_split <-
-      x_split %>%
-      purrr::modify_if(~ stringr::str_detect(.x, paste0(suffix, "$"), negate = TRUE),
-                       ~ stringr::str_c(.x, suffix))
-  }
-  if (rlang::is_true(seq)) {
-    seq_num <-
-      seq_num %>%
-      stringr::str_extract_all("[0-9]{1,}", simplify = TRUE) %>%
-      as.numeric()
-    x_add <-
-      paste0(
-        prefix,
-        seq.int(min(seq_num) + 1, max(seq_num) - 1),
-        suffix
-      )
-    append(x_split, x_add, after = 1)    
-  } else {
-    c(x_split)
-  }
-}
-seq_split_sep_mix <- function(str, split_chr = "-", prefix = NULL, suffix = NULL, seq = TRUE, sep_chr = "、") {
-  seq_split_numchar(str, split_chr, prefix, suffix, seq) %>% 
-    as.list() %>% 
-    purrr::modify_if(~ stringr::str_detect(.x, sep_chr),
-                     ~ seq_split_numchar(str = .x, 
-                                         split_chr = sep_chr, 
-                                         prefix = prefix, 
-                                         suffix = suffix, 
-                                         seq = FALSE)) %>% 
-    purrr::reduce(c)
-}
-
-seq_split_numchar(str = "1〜4丁目", split_chr = "〜", prefix = NULL, suffix = "丁目")
-seq_split_sep_mix(str = "1〜4丁目、6、9丁目", split_chr = "〜", prefix = NULL, suffix = "丁目", sep_chr = "、")
-seq_split_sep_mix(str = "1〜4丁目", split_chr = "〜", prefix = NULL, suffix = "丁目")
-
-seq_split_numchar(str = "1、2丁目", split_chr = "、", prefix = NULL, suffix = "丁目", seq = FALSE)
-
+# tidy --------------------------------------------------------------------
+source("R/split_seq_address.R")
 # df_tgt %>%
 #   mutate(split_street = purrr::pmap(.,
-#                                     ~ seq_split_numchar(..4 %>%
+#                                     ~ split_seq_address(..4 %>%
 #                                                           stringr::str_extract("\\(.+\\)") %>%
 #                                                           stringr::str_remove_all("\\(|\\)"),
 #                                                         split_chr = "\u301c", "第", "地割"))) %>%
@@ -83,19 +69,8 @@ seq_split_numchar(str = "1、2丁目", split_chr = "、", prefix = NULL, suffix 
 #             prefecture,
 #             city,
 #             street = split_street)
-# 
-# x <- c("奈良(青葉町、大浦、会社町、霞ケ丘、後藤寺西団地、後藤寺東団地、希望ケ丘、",
-#        "松の木、三井後藤寺、緑町、月見ケ丘)")
-# 
-# merge_row_char <- function(str) {
-#   stringr::str_c(str, collapse = "") %>%
-#     stringr::str_extract("\\(.+\\)") %>%
-#     stringr::str_remove_all("\\(|\\)") %>%
-#     stringr::str_split("、", simplify = TRUE)
-# }
-# 
-# merge_row_char(x)
-# 
+#
+
 # df_tgt <-
 #   df_tgt %>%
 #   group_by(zip_code, prefecture, city) %>%
@@ -158,11 +133,11 @@ tidy_zipcode <- function(df) {
         dplyr::slice(1L))
   df_fix <-
     df_fix %>%
-    assertr::verify(nrow(.) ==  124349) %>%
+    #assertr::verify(nrow(.) ==  124349) %>%
     dplyr::anti_join(df_merge_rows %>%
                        dplyr::select(jis_code, zip_code, city),
-              by = c("jis_code", "zip_code", "city")) %>%
-    assertr::verify(nrow(.) == 123834) # -515 (単純に2行分ではない。3行のものもある)
+              by = c("jis_code", "zip_code", "city"))# %>%
+    #assertr::verify(nrow(.) == 123834) # -515 (単純に2行分ではない。3行のものもある)
   df_fix <-
     df_fix %>%
     dplyr::bind_rows(df_merge_rows) %>%
@@ -189,7 +164,7 @@ separate_street_rows <- function(data, col, pattern = "丁目", split_chr, prefi
                    into = c("street", "street_sub"),
                    regex  = c("(.+)\\((.+)\\)")) %>%
     mutate(split_street = purrr::pmap(.,
-                                      ~ seq_split_numchar(..6,
+                                      ~ split_seq_address(..6,
                                                           split_chr,
                                                           prefix,
                                                           suffix))) %>%
@@ -209,8 +184,35 @@ df_fix <-
 #   df_fix %>%
 #   select(jis_code, zip_code, city, street, ends_with("_duplicate"))
 
+# 複数の行を一行に
+df_fix %>% 
+  filter(zip_code %in% unique(df_multi_rows$zip_code)) %>% 
+  pull(street)
+
+df_fix %>% 
+  filter(zip_code == "0660005") %>% 
+  pull(street)
 df_fix %>%
-  filter(zip_code == "8260043")
+  filter(zip_code == "8260043") %>% 
+  pull(street)
+
+# 、で区切られた複数の住所を別々の行に分割
+# 合わせて括弧を取り除くが、京都市の通り名は括弧の中の住所が町域名の前に来るようにする
+df_fix %>% 
+  filter(jis_code == "26104", stringr::str_detect(street, "寺町通四条上る"))
+# --> 寺町通四条上る中之町
+
+c("26104")
+df_fix %>% 
+  filter(zip_code =="0350002")
+
+df_fix %>% 
+  filter(stringr::str_detect(street, "、"))
+
+x <- "藤野(400、400−2番地) "
+
+
+
 # 〜を含み、複数の行に分割可能。、−及びを含まない
 df_tmp <-
   df_fix %>%
@@ -257,7 +259,7 @@ df_tmp_banchi <-
 #                  regex  = c("(.+)\\((.+)\\)")) -> d
 # d$street_sub[44:48] %>% 
 #   purrr::map(
-#     ~ seq_split_numchar(.x, split_chr = "〜", suffix = "番地")
+#     ~ split_seq_address(.x, split_chr = "〜", suffix = "番地")
 #   )
 
 unique(df_tmp_banchi$street)
