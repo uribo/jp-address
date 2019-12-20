@@ -187,8 +187,8 @@ if (file.exists(here::here("data-raw/isj_2018b.rds")) == FALSE) {
   task_isj_download("data-raw/位置参照情報/", jp_city_codes, "h30", posLevel = 1)
   df_isj_b <-
     merge_isj_csv(here::here("data-raw/位置参照情報/大字・町丁目レベル/h30/"),
-                  posLevel = 0) %>% 
-    verify(dim(.) == c(189817, 14))
+                  posLevel = 1) %>% 
+    verify(dim(.) == c(189817, 8))
   df_isj_b %>% 
     select(city, contains("street_"), longitude, latitude) %>% 
     verify(ncol(.) == 6L) %>% 
