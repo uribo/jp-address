@@ -113,28 +113,30 @@ tidy_zipcode <- function(df) {
     df %>%
     dplyr::count(zip_code, city, street, sort = TRUE) %>%
     dplyr::filter(n > 1) %>%
-    assertr::verify(nrow(.) == 2L) %>%
+    #assertr::verify(nrow(.) == 2L) %>%
     dplyr::transmute(zip_code, city, street, duplicate = TRUE)
-  df_fix <-
-    df %>%
-    dplyr::left_join(df_duplicate,
-              by = c("zip_code", "city", "street")) %>%
-    dplyr::group_by(zip_code, city, street) %>%
-    dplyr::slice(1L) %>%
-    dplyr::ungroup() %>%
-    tibble::rowid_to_column() %>% 
-    dplyr::select(-duplicate)
+  if (nrow(df_duplicate) >= 1) {
+    df_fix <-
+      df %>%
+      dplyr::left_join(df_duplicate,
+                       by = c("zip_code", "city", "street")) %>%
+      dplyr::group_by(zip_code, city, street) %>%
+      dplyr::slice(1L) %>%
+      dplyr::ungroup() %>%
+      dplyr::select(-duplicate)    
+  }
+    df_fix <- 
+      df %>% 
+      tibble::rowid_to_column()
   multiple_rows_start <-
     df_fix %>%
     dplyr::filter(stringr::str_detect(street, "\\(") & stringr::str_detect(street, "\\)$", 
                                                                            negate = TRUE)) %>%
-    dplyr::select(rowid) %>%
     dplyr::pull(rowid)
   multiple_rows_end <-
     df_fix %>%
     dplyr::filter(stringr::str_detect(street, "\\)$") & stringr::str_detect(street, "\\(", 
                                                                             negate = TRUE)) %>%
-    dplyr::select(rowid) %>%
     dplyr::pull(rowid)
   df_merge_rows <-
     purrr::map2_dfr(
@@ -194,16 +196,52 @@ df_fix <-
   df %>%
   tidy_zipcode()# %>% mutate(id = row_number())
 
-
 df_split_rows <- 
   df_fix %>%
-  dplyr::filter(stringr::str_detect(street, "、")) %>% 
+  dplyr::filter(stringr::str_detect(street, "「.+」", negate = TRUE),
+                stringr::str_detect(street, "、")) %>% 
   dplyr::mutate(split_street = purrr::pmap(.,
                                            ~ split_inside_address(..6))) %>%
   tidyr::unnest(cols = split_street) %>%
   dplyr::select(-street) %>%
   dplyr::rename(street = split_street) %>%
-  dplyr::select(names(data), "rowid")
+  dplyr::select(names(df_fix), "rowid")
+
+bind_rows(
+  distinct(df_split_rows, rowid, .keep_all = TRUE),
+  df_split_rows2
+) %>% 
+  count(rowid, sort = TRUE)
+
+# そのままでOK
+df_split_rows2 <-
+  df_fix %>%
+  dplyr::filter(stringr::str_detect(street, "「.+」"),
+                stringr::str_detect(street, "、", negate = TRUE))
+
+df_keep <- 
+  df_fix %>%
+  filter(!rowid %in% unique(df_split_rows$rowid)) %>% 
+  filter(!rowid %in% unique(df_split_rows2$rowid))
+
+df_keep %>% 
+  filter(stringr::str_detect(street, "、")) %>% 
+  pull(street)
+
+"大江(1丁目、2丁目「651、662、668番地」以外、3丁目5、13−4、20、678、687番地)"
+c("大江1丁目", "大江2丁目「651、662、668番地」以外", "大江3丁目5番地", "大江13-4番地", "大江20番地", "大江678番地", "大江687番地")
+
+split_inside_address("大江(1丁目、2丁目以外、3丁目5、13−4、20、678、687番地)", prefix = "大江")
+
+df_split_rows %>% 
+  pull(street)
+
+df_keep %>% 
+  filter(str_detect(street, "山田町下谷上"))
+
+
+
+
 
 df_fix <-
   df_fix %>% 
@@ -217,9 +255,14 @@ df_fix <-
 
 # 複数の行を一行に
 df_fix %>% 
+  filter(stringr::str_detect(street, "「.+」", negate = TRUE)) %>% 
+  
+
   filter(zip_code %in% unique(df_multi_rows$zip_code)) %>% 
   pull(street) %>% 
-  stringr::str_subset("除く")
+  stringr::str_subset("「.+」", negate = TRUE) %>% 
+  .[1] %>% 
+  split_inside_address()
 
 "犬落瀬(内金矢、内山、岡沼、金沢、金矢、上淋代、木越、権現沢、四木、七百、下久保「174を除く」、下淋代、高森、通目木、坪毛沢「2沢、南平、柳沢、大曲」)" %>% 
   split_inside_address()

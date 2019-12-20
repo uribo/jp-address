@@ -70,17 +70,21 @@ split_multiple_address <- function(str, delim = "、", prefix = NULL, suffix = N
     x %>% 
     stringr::str_split(delim, simplify = TRUE) %>% 
     as.vector()
-  if (sum(stringr::str_detect(x, "「|」")) >= 1) {
-    xx <- 
-      str_extract_all(str, "「.+、.+」(?=、)", simplify = TRUE)
-    x[seq.int(str_which(x, "「"), str_which(x, "「") +1)] <- 
-      x[3:4] %>% 
-      stringr::str_remove("「.+|.+」") %>% 
-      stringr::str_subset(".{1}", negate = FALSE) %>% 
-      stringr::str_c(xx)
-    x <- 
-      unique(x)
-  }
+  # if (sum(stringr::str_detect(x, "「|」")) > 2) {
+  #   stringr::str_c(str, collapse = "")
+  # }
+  # if (sum(stringr::str_detect(x, "「|」")) == 2) {
+  #   xx <- 
+  #     str_extract_all(str, "「.+、.+」、", simplify = TRUE)
+  #   x[seq.int(str_which(x, "「"), str_which(x, "「") + 1)] <- 
+  #     x[3:4] %>% 
+  #     stringr::str_remove("「.+|.+」") %>% 
+  #     stringr::str_subset(".{1}", negate = FALSE) %>% 
+  #     stringr::str_c(xx)
+  #   x <- 
+  #     unique(x)
+  # }
+  
   if (!is.null(prefix))
     x <- stringr::str_c(prefix, x)
   if (!is.null(suffix))
