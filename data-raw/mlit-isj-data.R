@@ -241,7 +241,7 @@ jp_city_codes <-
 if (file.exists(here::here("data-raw/isj_2017a.rds")) == FALSE) {
   task_isj_download(dir = "data-raw/位置参照情報/", city = jp_city_codes, jyear = "h29", posLevel = 0)
   df_isj_a <-
-    merge_isj_csv(here::here("data-raw/位置参照情報/街区レベル/h30/"),
+    merge_isj_csv(here::here("data-raw/位置参照情報/街区レベル/h29/"),
                   posLevel = 0) %>% 
     verify(dim(.) == c(20697813, 14))
   df_isj_a %>% 
