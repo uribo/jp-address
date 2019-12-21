@@ -1,5 +1,6 @@
 # split_seq_address(str = "吾妻1、2丁目", split_chr = "、", prefix = "吾妻", suffix = "丁目", seq = FALSE)
 # split_seq_address(str = "1〜4丁目", split_chr = "〜", prefix = NULL, suffix = "丁目")
+# split_seq_address(str = "草刈(1〜4)", split_chr = "〜", prefix = "草刈")
 # split_seq_address_mix(str = "1〜4丁目、6、9丁目", split_chr = "〜", prefix = NULL, suffix = "丁目", sep_chr = "、")
 # split_seq_address_mix(str = "1〜4丁目", split_chr = "〜", prefix = NULL, suffix = "丁目")
 split_seq_address <- function(str, split_chr = "-", prefix = NULL, suffix = NULL, seq = TRUE) {
@@ -14,7 +15,8 @@ split_seq_address <- function(str, split_chr = "-", prefix = NULL, suffix = NULL
     x_split <-
       x_split %>%
       purrr::modify_if(~ stringr::str_detect(.x, paste0("^", prefix), negate = TRUE),
-                       ~ stringr::str_c(prefix, .x))
+                       ~ stringr::str_c(prefix, .x)) %>% 
+      stringr::str_remove("\\(|\\)")
   }
   if (!is.null(suffix)) {
     seq_num <-
