@@ -143,6 +143,54 @@ split_inside_address <- function(str, delim = "、", prefix = NULL, suffix = NUL
                          suffix = suffix)
 }
 
+zip_tidy_prep <- function(df) {
+  df_duplicate <-
+    df %>%
+    dplyr::count(zip_code, city, street, sort = TRUE) %>%
+    dplyr::filter(n > 1) %>%
+    dplyr::transmute(zip_code, city, street, duplicate = TRUE)
+  if (nrow(df_duplicate) >= 1) {
+    df <-
+      df %>%
+      dplyr::left_join(df_duplicate,
+                       by = c("zip_code", "city", "street")) %>%
+      dplyr::group_by(zip_code, city, street) %>%
+      dplyr::slice(1L) %>%
+      dplyr::ungroup() %>%
+      dplyr::select(-duplicate)    
+  }
+  df_fix <- 
+    df %>% 
+    tibble::rowid_to_column()
+  multiple_rows_start <-
+    df_fix %>%
+    dplyr::filter(stringr::str_detect(street, "\\(") & stringr::str_detect(street, "\\)$", 
+                                                                           negate = TRUE)) %>%
+    dplyr::pull(rowid)
+  multiple_rows_end <-
+    df_fix %>%
+    dplyr::filter(stringr::str_detect(street, "\\)$") & stringr::str_detect(street, "\\(", 
+                                                                            negate = TRUE)) %>%
+    dplyr::pull(rowid)
+  df_merge_rows <-
+    purrr::map2_dfr(
+      multiple_rows_start,
+      multiple_rows_end,
+      ~ df_fix[.x:.y, ] %>%
+        dplyr::mutate(street = paste(street, collapse = "")) %>%
+        dplyr::slice(1L))
+  df_fix <-
+    df_fix %>%
+    dplyr::anti_join(df_merge_rows %>%
+                       dplyr::select(jis_code, zip_code, city),
+                     by = c("jis_code", "zip_code", "city"))
+  df_fix <-
+    df_fix %>%
+    dplyr::bind_rows(df_merge_rows) %>% 
+    df_fix %>% 
+    dplyr::arrange(rowid)
+}
+
 street_fix_keys <- 
   c(`大江(1丁目、2丁目「651、662、668番地」以外、3丁目5、13−4、20、678、687番地)` = paste0("大江",
                                                                    c("1丁目", "2丁目「651、662、668番地」以外", "3丁目5番地", "3丁目13-4番地", "3丁目20番地", "3丁目678番地", "3丁目687番地"),
