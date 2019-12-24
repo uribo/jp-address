@@ -187,7 +187,6 @@ zip_tidy_prep <- function(df) {
   df_fix <-
     df_fix %>%
     dplyr::bind_rows(df_merge_rows) %>% 
-    df_fix %>% 
     dplyr::arrange(rowid)
 }
 
